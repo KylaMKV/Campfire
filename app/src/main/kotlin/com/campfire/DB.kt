@@ -12,9 +12,26 @@ val PROTECTED_COLUMNS = arrayListOf(
 );
 
 val MAINDBPATH = "test.db";
+
 private val BASE_TABLES = mapOf(
 	"Users" to "uid TEXT PRIMARY KEY, username TEXT, privkey TINYTEXT, pubkey TINYTEXT"
 );
+
+private fun resultset_to_hashmap(row: ResultSet): List<HashMap<String, Any>> {
+	var ret = mutableListOf<HashMap<String, Any>>();
+	var index = 0;
+	while(row.next()) {
+		var complete_row = HashMap<String, Any>();
+		for(rowindex in 1..row.getMetaData().getColumnCount()) {
+			val rowdata = row.getObject(rowindex);
+			val col = row.getMetaData().getColumnName(rowindex);
+			complete_row[col] = rowdata;
+		}
+		ret.add(complete_row)
+		index++;
+	}
+	return ret;
+}
 
 private fun sql_tuplifier(data: Collection<Any>): String {
 	var ret = "";
@@ -35,12 +52,12 @@ private fun sql_tuplifier(data: Collection<Any>): String {
 	return ret.substring(0, ret.length - 1);
 }
 
-private fun sqlify_map(params: Map<String, Any>): String {
+private fun sqlify_map(params: Map<String, Any>, comparison_op: String = "=", combination_op: String = " AND "): String {
 	var query = "";
 	for(param in params.keys) {
-		query += "$param = '${params[param]}' AND ";
+		query += "$param $comparison_op '${params[param]}'$combination_op";
 	}
-	query = query.substring(0, query.length - 5);
+	query = query.substring(0, query.length - combination_op.length);
 	return query
 	
 }
@@ -104,6 +121,9 @@ class DB(dbpath: String) {
 		return User.load(this.get("Users", params));
 		
 	}
+	fun create_table(name: String, params: Map<String, String>): Boolean {
+		return this.db.createStatement().execute("CREATE TABLE IF NOT EXISTS $name(${sqlify_map(params, " ", ", ")})");
+	}
 	fun get_protected(table: String, params: Map<String, String>): HashMap<String, Any>? {
 		if(table in PROTECTED_TABLES) return null
 		if (params.keys.any { it in PROTECTED_COLUMNS }) return null
@@ -113,7 +133,9 @@ class DB(dbpath: String) {
 
 		}
 		return this.get(table, params)
-
+	}
+	fun table_info(name: String): List<HashMap<String, Any>> {
+		return resultset_to_hashmap(this.get("PRAGMA table_info($name)"));
 	}
 	fun insert(table: String, params: Map<String, Any>) {
 		val stmt = this.db.createStatement();

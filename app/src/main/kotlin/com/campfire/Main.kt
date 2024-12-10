@@ -152,16 +152,18 @@ class Client(client: Socket) {
 	}
 	private fun read(): String {
 		var reader = socket.getInputStream();
-		var buf: Byte = 0xFF.toByte();
-		while(buf != 0x00.toByte()) {
-			buf = reader.read().toByte();
-		}
-		var ret: ByteArray = byteArrayOf();
-		while(true) {
-			buf = reader.read().toByte();
-			if(buf == 0xFF.toByte()) break;
-			ret += buf;
-		}
+		val ret = reader.readAllBytes();
+		// I made it this way because I didn't know `reader.readAllBytes()` existed :(
+		// var buf: Byte = 0xFF.toByte();
+		// while(buf != 0x00.toByte()) {
+		// 	buf = reader.read().toByte();
+		// }
+		// var ret: ByteArray = byteArrayOf();
+		// while(true) {
+		// 	buf = reader.read().toByte();
+		// 	if(buf == 0xFF.toByte()) break;
+		// 	ret += buf;
+		// }
 		return String(ret);
 	}
 	init {
@@ -216,6 +218,7 @@ class Client(client: Socket) {
 		}
 		return null;
 	}
+
 	private fun get_auth_code(request: Request): Response {
 		val user = server.get_user(request.args["UID"]!!);
 		if (user == null) {return Response.create(404, "USER_NOT_FOUND");}
